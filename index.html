@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>GetRadio Stations (HLS Fix)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        button {
+            display: block;
+            width: 100%;
+            max-width: 300px;
+            margin: 10px auto;
+            padding: 15px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button.playing {
+            background: #0078D4;
+        }
+        #stopBtn {
+            background: #D13438;
+        }
+        #status {
+            margin: 20px 0;
+            font-size: 14px;
+            min-height: 20px;
+        }
+    </style>
+    <!-- Библиотека для поддержки HLS в Edge/Chrome -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+    <h1>🎵 GetRadio Stations</h1>
+    <div id="status">Выберите станцию</div>
+
+    <audio id="audioPlayer" preload="none"></audio>
+
+    <button data-url="https://h.getradio.me/spdeep/hls.m3u8">Spdeep</button>
+    <button data-url="https://h.getradio.me/svoefm/hls.m3u8">Svoe FM</button>
+    <button data-url="https://h.getradio.me/bestdeepfm/hls.m3u8">Best Deep FM</button>
+    <button data-url="https://h.getradio.me/luxury/hls.m3u8">Luxury</button>
+    <button data-url="https://h.getradio.me/delishdeep/hls.m3u8">Delish Deep</button>
+
+    <button id="stopBtn">⏹️ Остановить</button>
+
+    <script>
+        const audio = document.getElementById('audioPlayer');
+        const statusEl = document.getElementById('status');
+        let currentButton = null;
+        let hls = null;
+
+        function updateStatus(text) {
+            statusEl.textContent = text;
+        }
+
+        function playStation(streamUrl, stationName, button) {
+            stopStation();
+            
+            updateStatus(`Подключение: ${stationName}`);
+
+            // Проверяем, поддерживает ли браузер HLS нативно
+            if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+                // Нативная поддержка (Safari)
+                audio.src = streamUrl;
+                audio.play().then(() => {
+                    onPlaySuccess(stationName, button);
+                }).catch(error => {
+                    updateStatus(`Ошибка: ${error.message}`);
+                });
+            } else if (Hls.isSupported()) {
+                // Поддержка через Hls.js (Edge/Chrome)
+                if (hls) {
+                    hls.destroy();
+                }
+                hls = new Hls();
+                hls.loadSource(streamUrl);
+                hls.attachMedia(audio);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    audio.play().then(() => {
+                        onPlaySuccess(stationName, button);
+                    }).catch(error => {
+                        updateStatus(`Ошибка воспроизведения: ${error.message}`);
+                    });
+                });
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    updateStatus(`Ошибка HLS: ${data.type}`);
+                });
+            } else {
+                updateStatus('Браузер не поддерживает HLS');
+            }
+        }
+
+        function onPlaySuccess(stationName, button) {
+            updateStatus(`▶️ Слушаем: ${stationName}`);
+            if (currentButton) currentButton.classList.remove('playing');
+            button.classList.add('playing');
+            currentButton = button;
+        }
+
+        function stopStation() {
+            audio.pause();
+            audio.src = '';
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+            if (currentButton) {
+                currentButton.classList.remove('playing');
+                currentButton = null;
+            }
+            updateStatus('⏹️ Остановлено');
+        }
+
+        // Назначаем обработчики кнопкам
+        document.querySelectorAll('button').forEach(button => {
+            if (button.id !== 'stopBtn') {
+                button.addEventListener('click', function() {
+                    const streamUrl = this.getAttribute('data-url');
+                    const stationName = this.textContent;
+                    playStation(streamUrl, stationName, this);
+                });
+            }
+        });
+
+        document.getElementById('stopBtn').addEventListener('click', stopStation);
+
+        // Обработчики событий аудио
+        audio.addEventListener('waiting', () => {
+            updateStatus('🔄 Буферизация...');
+        });
+
+        audio.addEventListener('playing', () => {
+            if (currentButton) {
+                updateStatus(`▶️ ${currentButton.textContent}`);
+            }
+        });
+
+        audio.addEventListener('error', (e) => {
+            updateStatus('❌ Ошибка аудиопотока');
+        });
+    </script>
+</body>
+</html>
