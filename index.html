@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>GetRadio Player</title>
+    <title>GetRadio Player - MP3 Version</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -35,14 +35,39 @@
     </style>
 </head>
 <body>
-    <h2>🎵 GetRadio Stations</h2>
+    <h2>🎵 GetRadio Stations - MP3</h2>
     <div id="status">Выберите станцию</div>
 
-    <button onclick="playRadio(this, 'https://h.getradio.me/spdeep/hls.m3u8')">Spdeep</button>
-    <button onclick="playRadio(this, 'https://h.getradio.me/svoefm/hls.m3u8')">Svoe FM</button>
-    <button onclick="playRadio(this, 'https://h.getradio.me/bestdeepfm/hls.m3u8')">Best Deep FM</button>
-    <button onclick="playRadio(this, 'https://h.getradio.me/luxury/hls.m3u8')">Luxury</button>
-    <button onclick="playRadio(this, 'https://h.getradio.me/delishdeep/hls.m3u8')">Delish Deep</button>
+    <!-- Пробуем разные форматы для каждой станции -->
+    <button onclick="playStation(this, 'Spdeep', [
+        'http://stream.getradio.me:8000/spdeep',
+        'http://stream.getradio.me:8000/spdeep.mp3',
+        'https://stream.getradio.me:8000/spdeep'
+    ])">Spdeep</button>
+
+    <button onclick="playStation(this, 'Svoe FM', [
+        'http://stream.getradio.me:8000/svoefm',
+        'http://stream.getradio.me:8000/svoefm.mp3', 
+        'https://stream.getradio.me:8000/svoefm'
+    ])">Svoe FM</button>
+
+    <button onclick="playStation(this, 'Best Deep FM', [
+        'http://stream.getradio.me:8000/bestdeepfm',
+        'http://stream.getradio.me:8000/bestdeepfm.mp3',
+        'https://stream.getradio.me:8000/bestdeepfm'
+    ])">Best Deep FM</button>
+
+    <button onclick="playStation(this, 'Luxury', [
+        'http://stream.getradio.me:8000/luxury',
+        'http://stream.getradio.me:8000/luxury.mp3',
+        'https://stream.getradio.me:8000/luxury'
+    ])">Luxury</button>
+
+    <button onclick="playStation(this, 'Delish Deep', [
+        'http://stream.getradio.me:8000/delishdeep',
+        'http://stream.getradio.me:8000/delishdeep.mp3',
+        'https://stream.getradio.me:8000/delishdeep'
+    ])">Delish Deep</button>
     
     <button onclick="stopRadio()" style="background: #ff4444;">⏹️ Стоп</button>
 
@@ -50,26 +75,37 @@
         let currentAudio = null;
         let currentButton = null;
 
-        function playRadio(button, url) {
+        function playStation(button, stationName, urls) {
             stopRadio();
-            
-            document.getElementById('status').textContent = 'Подключение...';
+            document.getElementById('status').textContent = `Подключение: ${stationName}...`;
             document.getElementById('status').style.color = 'orange';
 
-            const audio = new Audio();
-            audio.src = url;
-            audio.preload = 'none';
+            tryNextUrl(0);
 
-            audio.play().then(() => {
-                currentAudio = audio;
-                currentButton = button;
-                button.classList.add('playing');
-                document.getElementById('status').textContent = 'Играет';
-                document.getElementById('status').style.color = 'lime';
-            }).catch(error => {
-                document.getElementById('status').textContent = 'Ошибка: ' + error.message;
-                document.getElementById('status').style.color = 'red';
-            });
+            function tryNextUrl(index) {
+                if (index >= urls.length) {
+                    document.getElementById('status').textContent = `Все ссылки для ${stationName} не работают`;
+                    document.getElementById('status').style.color = 'red';
+                    return;
+                }
+
+                const audio = new Audio();
+                audio.src = urls[index];
+                audio.preload = 'none';
+
+                document.getElementById('status').textContent = `Попытка ${index + 1}/${urls.length}: ${stationName}`;
+
+                audio.play().then(() => {
+                    currentAudio = audio;
+                    currentButton = button;
+                    button.classList.add('playing');
+                    document.getElementById('status').textContent = `▶️ ${stationName}`;
+                    document.getElementById('status').style.color = 'lime';
+                }).catch(error => {
+                    // Пробуем следующую ссылку
+                    tryNextUrl(index + 1);
+                });
+            }
         }
 
         function stopRadio() {
@@ -81,7 +117,7 @@
                 currentButton.classList.remove('playing');
                 currentButton = null;
             }
-            document.getElementById('status').textContent = 'Остановлено';
+            document.getElementById('status').textContent = '⏹️ Остановлено';
             document.getElementById('status').style.color = 'gray';
         }
     </script>
