@@ -1,58 +1,121 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>GetRadio - Working MP3</title>
+    <title>GetRadio - Fixed Version</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { font-family: Helvetica; background: #000; color: white; padding: 20px; text-align: center; }
         button { display: block; width: 90%; max-width: 300px; margin: 10px auto; padding: 15px; background: #333; color: white; border: none; border-radius: 8px; font-size: 16px; }
         button.playing { background: #007AFF; }
         #status { margin: 15px 0; font-size: 14px; height: 20px; }
+        .loading { color: orange; }
+        .error { color: red; }
+        .success { color: lime; }
     </style>
 </head>
 <body>
-    <h2>🎵 GetRadio Stations</h2>
+    <h2>🎵 GetRadio - Рабочая версия</h2>
     <div id="status">Выберите станцию</div>
 
-    <!-- ТЕ САМЫЕ СТАНЦИИ, НО В MP3 -->
-    <button onclick="playRadio(this, 'http://stream.getradio.me:8000/spdeep')">Spdeep</button>
-    <button onclick="playRadio(this, 'http://stream.getradio.me:8000/svoefm')">Svoe FM</button>
-    <button onclick="playRadio(this, 'http://stream.getradio.me:8000/bestdeepfm')">Best Deep FM</button>
-    <button onclick="playRadio(this, 'http://stream.getradio.me:8000/luxury')">Luxury</button>
-    <button onclick="playRadio(this, 'http://stream.getradio.me:8000/delishdeep')">Delish Deep</button>
+    <!-- Станции с разными вариантами ссылок -->
+    <button onclick="playStation('Spdeep', [
+        'https://corsproxy.io/?http://stream.getradio.me:8000/spdeep',
+        'http://stream.getradio.me:8000/spdeep',
+        'https://stream.getradio.me:8000/spdeep'
+    ])">Spdeep</button>
+
+    <button onclick="playStation('Svoe FM', [
+        'https://corsproxy.io/?http://stream.getradio.me:8000/svoefm', 
+        'http://stream.getradio.me:8000/svoefm',
+        'https://stream.getradio.me:8000/svoefm'
+    ])">Svoe FM</button>
+
+    <button onclick="playStation('Best Deep FM', [
+        'https://corsproxy.io/?http://stream.getradio.me:8000/bestdeepfm',
+        'http://stream.getradio.me:8000/bestdeepfm',
+        'https://stream.getradio.me:8000/bestdeepfm'
+    ])">Best Deep FM</button>
+
+    <button onclick="playStation('Luxury', [
+        'https://corsproxy.io/?http://stream.getradio.me:8000/luxury',
+        'http://stream.getradio.me:8000/luxury',
+        'https://stream.getradio.me:8000/luxury'
+    ])">Luxury</button>
+
+    <button onclick="playStation('Delish Deep', [
+        'https://corsproxy.io/?http://stream.getradio.me:8000/delishdeep',
+        'http://stream.getradio.me:8000/delishdeep',
+        'https://stream.getradio.me:8000/delishdeep'
+    ])">Delish Deep</button>
     
     <button onclick="stopRadio()" style="background: #f00;">⏹️ Стоп</button>
 
     <script>
         let currentAudio = null;
-        let currentButton = null;
+        let currentStation = null;
 
-        function playRadio(button, url) {
+        function updateStatus(text, type) {
+            const status = document.getElementById('status');
+            status.textContent = text;
+            status.className = type || '';
+        }
+
+        function playStation(stationName, urls) {
             stopRadio();
-            document.getElementById('status').textContent = 'Подключение...';
-            document.getElementById('status').style.color = 'orange';
+            updateStatus(`Подключение: ${stationName}...`, 'loading');
+            
+            tryNextUrl(0);
 
-            const audio = new Audio();
-            audio.src = url;
-            audio.preload = 'none';
+            function tryNextUrl(index) {
+                if (index >= urls.length) {
+                    updateStatus(`Все ссылки для ${stationName} не работают`, 'error');
+                    return;
+                }
 
-            audio.play().then(() => {
-                currentAudio = audio;
-                currentButton = button;
-                button.classList.add('playing');
-                document.getElementById('status').textContent = 'Играет ✓';
-                document.getElementById('status').style.color = 'lime';
-            }).catch(error => {
-                document.getElementById('status').textContent = 'Ошибка подключения';
-                document.getElementById('status').style.color = 'red';
-            });
+                updateStatus(`Попытка ${index + 1}/${urls.length}: ${stationName}`, 'loading');
+
+                const audio = new Audio();
+                audio.src = urls[index];
+                audio.preload = 'none';
+
+                // Таймаут 5 секунд
+                const timeout = setTimeout(() => {
+                    if (audio.readyState === 0) {
+                        audio.pause();
+                        tryNextUrl(index + 1);
+                    }
+                }, 5000);
+
+                audio.play().then(() => {
+                    clearTimeout(timeout);
+                    currentAudio = audio;
+                    currentStation = stationName;
+                    updateStatus(`▶️ ${stationName}`, 'success');
+                    
+                    // Подсветка кнопки
+                    document.querySelectorAll('button').forEach(btn => {
+                        btn.classList.remove('playing');
+                        if (btn.textContent === stationName) {
+                            btn.classList.add('playing');
+                        }
+                    });
+                }).catch(error => {
+                    clearTimeout(timeout);
+                    tryNextUrl(index + 1);
+                });
+            }
         }
 
         function stopRadio() {
-            if (currentAudio) currentAudio.pause();
-            if (currentButton) currentButton.classList.remove('playing');
-            document.getElementById('status').textContent = 'Остановлено';
-            document.getElementById('status').style.color = 'gray';
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            document.querySelectorAll('button').forEach(btn => {
+                btn.classList.remove('playing');
+            });
+            updateStatus('⏹️ Остановлено');
+            currentStation = null;
         }
     </script>
 </body>
