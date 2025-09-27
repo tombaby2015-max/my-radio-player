@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>GetRadio - v.3.0 MP3 Fixed</title>
+    <title>GetRadio - v.3.1 Fixed Click</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { font-family: Helvetica; background: #000; color: white; padding: 20px; text-align: center; }
@@ -16,41 +16,21 @@
 </head>
 <body>
     <h2>🎵 GetRadio Stations</h2>
-    <div class="version">Версия 3.0 - MP3 с CORS-прокси | 28.12.2024</div>
+    <div class="version">Версия 3.1 - Исправлены обработчики кликов | 28.12.2024</div>
     <div id="status">Выберите станцию</div>
 
-    <!-- Станции с разными вариантами ссылок -->
-    <button onclick="playStation('Spdeep', [
-        'https://corsproxy.io/?http://stream.getradio.me:8000/spdeep',
-        'http://stream.getradio.me:8000/spdeep',
-        'https://stream.getradio.me:8000/spdeep'
-    ])">Spdeep</button>
+    <!-- Станции с data-атрибутами -->
+    <button class="station-btn" data-name="Spdeep" data-urls='["https://corsproxy.io/?http://stream.getradio.me:8000/spdeep","http://stream.getradio.me:8000/spdeep"]'>Spdeep</button>
 
-    <button onclick="playStation('Svoe FM', [
-        'https://corsproxy.io/?http://stream.getradio.me:8000/svoefm', 
-        'http://stream.getradio.me:8000/svoefm',
-        'https://stream.getradio.me:8000/svoefm'
-    ])">Svoe FM</button>
+    <button class="station-btn" data-name="Svoe FM" data-urls='["https://corsproxy.io/?http://stream.getradio.me:8000/svoefm","http://stream.getradio.me:8000/svoefm"]'>Svoe FM</button>
 
-    <button onclick="playStation('Best Deep FM', [
-        'https://corsproxy.io/?http://stream.getradio.me:8000/bestdeepfm',
-        'http://stream.getradio.me:8000/bestdeepfm',
-        'https://stream.getradio.me:8000/bestdeepfm'
-    ])">Best Deep FM</button>
+    <button class="station-btn" data-name="Best Deep FM" data-urls='["https://corsproxy.io/?http://stream.getradio.me:8000/bestdeepfm","http://stream.getradio.me:8000/bestdeepfm"]'>Best Deep FM</button>
 
-    <button onclick="playStation('Luxury', [
-        'https://corsproxy.io/?http://stream.getradio.me:8000/luxury',
-        'http://stream.getradio.me:8000/luxury',
-        'https://stream.getradio.me:8000/luxury'
-    ])">Luxury</button>
+    <button class="station-btn" data-name="Luxury" data-urls='["https://corsproxy.io/?http://stream.getradio.me:8000/luxury","http://stream.getradio.me:8000/luxury"]'>Luxury</button>
 
-    <button onclick="playStation('Delish Deep', [
-        'https://corsproxy.io/?http://stream.getradio.me:8000/delishdeep',
-        'http://stream.getradio.me:8000/delishdeep',
-        'https://stream.getradio.me:8000/delishdeep'
-    ])">Delish Deep</button>
+    <button class="station-btn" data-name="Delish Deep" data-urls='["https://corsproxy.io/?http://stream.getradio.me:8000/delishdeep","http://stream.getradio.me:8000/delishdeep"]'>Delish Deep</button>
     
-    <button onclick="stopRadio()" style="background: #f00;">⏹️ Стоп</button>
+    <button id="stopBtn" style="background: #f00;">⏹️ Стоп</button>
 
     <script>
         let currentAudio = null;
@@ -95,9 +75,9 @@
                     updateStatus(`▶️ ${stationName}`, 'success');
                     
                     // Подсветка кнопки
-                    document.querySelectorAll('button').forEach(btn => {
+                    document.querySelectorAll('.station-btn').forEach(btn => {
                         btn.classList.remove('playing');
-                        if (btn.textContent === stationName) {
+                        if (btn.getAttribute('data-name') === stationName) {
                             btn.classList.add('playing');
                         }
                     });
@@ -113,12 +93,27 @@
                 currentAudio.pause();
                 currentAudio = null;
             }
-            document.querySelectorAll('button').forEach(btn => {
+            document.querySelectorAll('.station-btn').forEach(btn => {
                 btn.classList.remove('playing');
             });
             updateStatus('⏹️ Остановлено');
             currentStation = null;
         }
+
+        // Назначаем обработчики кликов
+        document.querySelectorAll('.station-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const stationName = this.getAttribute('data-name');
+                const urls = JSON.parse(this.getAttribute('data-urls'));
+                playStation(stationName, urls);
+            });
+        });
+
+        // Обработчик для кнопки Стоп
+        document.getElementById('stopBtn').addEventListener('click', stopRadio);
+
+        // Дебаг: проверяем что обработчики назначены
+        console.log('Страница загружена. Обработчики назначены.');
     </script>
 </body>
 </html>
