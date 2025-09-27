@@ -1,33 +1,103 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="ru">
 <head>
-    <title>GetRadio - Ultra Simple</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Helvetica; background: #000; color: white; padding: 20px; text-align: center; }
-        button { display: block; width: 90%; margin: 10px auto; padding: 15px; background: #333; color: white; border: none; font-size: 16px; }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Радио плеер</title>
+<style>
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#111;color:#fff}
+  h1{text-align:center;font-size:20px;margin:16px 0}
+  .grid{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;padding:12px}
+  .card{width:140px;background:#1c1c1c;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.4);text-align:center}
+  .card img{width:100%;height:120px;object-fit:cover}
+  .title{padding:6px 4px;font-size:14px;font-weight:600;color:#eee}
+  .controls{display:flex;justify-content:center;gap:6px;padding:8px}
+  button{flex:1;padding:6px 0;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+  .play{background:#0a84ff;color:#fff}
+  .stop{background:#444;color:#fff}
+  #status{text-align:center;margin:12px;font-size:13px;color:#aaa}
+  audio,video{display:none}
+</style>
 </head>
 <body>
-    <h2>🎵 GetRadio - Ultra Simple v1</h2>
-    <div id="status">Нажмите на станцию</div>
+  <h1>Интернет-радио</h1>
+  <div class="grid">
+    <div class="card">
+      <img src="https://yt3.googleusercontent.com/ytc/AIdro_lJTw4VkYle3-UEtE-IA7sni1SyTx9Uqvxp10UvSHRMIqk=s900-c-k-c0x00ffffff-no-rj" alt="">
+      <div class="title">SoundPark Deep</div>
+      <div class="controls">
+        <button class="play" onclick="playStation('https://h.getradio.me/spdeep/hls.m3u8','SoundPark Deep')">Play</button>
+        <button class="stop" onclick="stopRadio()">Stop</button>
+      </div>
+    </div>
 
-    <button onclick="testPlay()">Тестовая станция</button>
-    
-    <script>
-        function testPlay() {
-            document.getElementById('status').textContent = 'Пытаюсь играть...';
-            
-            // Самая простая рабочая станция
-            const audio = new Audio('http://air2.radiorecord.ru:805/deep_320');
-            audio.play().then(() => {
-                document.getElementById('status').textContent = 'УРА! Работает!';
-            }).catch(e => {
-                document.getElementById('status').textContent = 'Ошибка: ' + e.message;
-            });
-        }
-        
-        console.log('Простая версия загружена');
-    </script>
+    <div class="card">
+      <img src="https://static10.tgstat.ru/channels/_0/f9/f9d9076a2feff054391254eb50e2794f.jpg" alt="">
+      <div class="title">Svoe FM</div>
+      <div class="controls">
+        <button class="play" onclick="playStation('https://h.getradio.me/svoefm/hls.m3u8','Svoe FM')">Play</button>
+        <button class="stop" onclick="stopRadio()">Stop</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="https://static.tildacdn.com/tild3431-6236-4139-b533-326566616136/Original12_2.png" alt="">
+      <div class="title">Best Deep FM</div>
+      <div class="controls">
+        <button class="play" onclick="playStation('https://h.getradio.me/bestdeepfm/hls.m3u8','Best Deep FM')">Play</button>
+        <button class="stop" onclick="stopRadio()">Stop</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="https://yt3.googleusercontent.com/ytc/AIdro_mcxZehF6Fv0yPccj0nnnhcvRbxlNrC1EhlodWWZ-KWArI=s900-c-k-c0x00ffffff-no-rj" alt="">
+      <div class="title">Luxury Music DeepH</div>
+      <div class="controls">
+        <button class="play" onclick="playStation('https://h.getradio.me/luxury/hls.m3u8','Luxury Music DeepH')">Play</button>
+        <button class="stop" onclick="stopRadio()">Stop</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="https://avatars.mds.yandex.net/i?id=ef3d0278cc7b1a792a5677b4d61de256_l-5209794-images-thumbs&n=13" alt="">
+      <div class="title">Delish Deep</div>
+      <div class="controls">
+        <button class="play" onclick="playStation('https://h.getradio.me/delishdeep/hls.m3u8','Delish Deep')">Play</button>
+        <button class="stop" onclick="stopRadio()">Stop</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="status">Выберите станцию</div>
+
+  <video id="player" preload="none" playsinline webkit-playsinline></video>
+
+<script>
+  var player = document.getElementById('player');
+  var statusEl = document.getElementById('status');
+
+  function playStation(url, name){
+    stopRadio();
+    player.innerHTML = '<source src="'+url+'" type="application/vnd.apple.mpegurl">';
+    player.load();
+    var p = player.play();
+    if(p && p.then){
+      p.then(function(){ statusEl.textContent = "Играет: " + name; })
+       .catch(function(e){ statusEl.textContent = "Ошибка: " + e; });
+    } else {
+      setTimeout(function(){
+        statusEl.textContent = player.paused ? "Не удалось" : "Играет: " + name;
+      },700);
+    }
+  }
+
+  function stopRadio(){
+    try{ player.pause(); }catch(e){}
+    statusEl.textContent = "Остановлено";
+  }
+
+  player.addEventListener('waiting', function(){ statusEl.textContent = "Буферизация..."; });
+  player.addEventListener('error', function(){ statusEl.textContent = "Ошибка воспроизведения"; });
+</script>
 </body>
 </html>
