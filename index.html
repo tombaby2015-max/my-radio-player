@@ -1,125 +1,86 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>GetRadio Player - MP3 Version</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {
-            font-family: Helvetica, Arial;
-            background: #000;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-        button {
-            display: block;
-            width: 90%;
-            max-width: 300px;
-            margin: 10px auto;
-            padding: 15px;
-            background: #333;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-        button.playing {
-            background: #007AFF;
-        }
-        #status {
-            margin: 15px 0;
-            font-size: 14px;
-            height: 20px;
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Мини-радио (iOS9)</title>
+<style>
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+  .wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;background:#f7f7f7;color:#111}
+  .card{width:100%;max-width:420px;background:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.08);padding:18px;text-align:center}
+  h1{font-size:18px;margin:0 0 8px}
+  p{margin:6px 0 14px;font-size:13px;color:#555}
+  button{appearance:none;border:0;padding:12px 18px;border-radius:8px;font-size:16px;background:#0a84ff;color:white;cursor:pointer}
+  button.secondary{background:#e5e7eb;color:#111}
+  #status{margin-top:10px;font-size:13px;color:#666}
+  /* скрываем визуальный элемент <video> (он нужен для звука) */
+  video{display:none}
+</style>
 </head>
 <body>
-    <h2>🎵 GetRadio Stations - MP3</h2>
-    <div id="status">Выберите станцию</div>
+<div class="wrap">
+  <div class="card">
+    <h1>Svoe FM — радио</h1>
+    <p>Плеер для iOS9 / Safari. Нажмите «Play» для запуска.</p>
 
-    <!-- Пробуем разные форматы для каждой станции -->
-    <button onclick="playStation(this, 'Spdeep', [
-        'http://stream.getradio.me:8000/spdeep',
-        'http://stream.getradio.me:8000/spdeep.mp3',
-        'https://stream.getradio.me:8000/spdeep'
-    ])">Spdeep</button>
+    <button id="playBtn">Play</button>
+    <button id="stopBtn" class="secondary" style="margin-left:8px">Pause</button>
 
-    <button onclick="playStation(this, 'Svoe FM', [
-        'http://stream.getradio.me:8000/svoefm',
-        'http://stream.getradio.me:8000/svoefm.mp3', 
-        'https://stream.getradio.me:8000/svoefm'
-    ])">Svoe FM</button>
+    <div id="status">Готово</div>
 
-    <button onclick="playStation(this, 'Best Deep FM', [
-        'http://stream.getradio.me:8000/bestdeepfm',
-        'http://stream.getradio.me:8000/bestdeepfm.mp3',
-        'https://stream.getradio.me:8000/bestdeepfm'
-    ])">Best Deep FM</button>
+    <!-- Video элемент используется как nативный HLS плеер в Safari.
+         Если хотите использовать audio, можно заменить на <audio>. -->
+    <video id="player" preload="none" playsinline webkit-playsinline>
+      <source src="https://h.getradio.me/svoefm/hls.m3u8" type="application/vnd.apple.mpegurl">
+      <!-- fallback текст -->
+      Ваш браузер не поддерживает поток HLS.
+    </video>
+  </div>
+</div>
 
-    <button onclick="playStation(this, 'Luxury', [
-        'http://stream.getradio.me:8000/luxury',
-        'http://stream.getradio.me:8000/luxury.mp3',
-        'https://stream.getradio.me:8000/luxury'
-    ])">Luxury</button>
+<script>
+(function(){
+  var player = document.getElementById('player');
+  var playBtn = document.getElementById('playBtn');
+  var stopBtn = document.getElementById('stopBtn');
+  var status = document.getElementById('status');
 
-    <button onclick="playStation(this, 'Delish Deep', [
-        'http://stream.getradio.me:8000/delishdeep',
-        'http://stream.getradio.me:8000/delishdeep.mp3',
-        'https://stream.getradio.me:8000/delishdeep'
-    ])">Delish Deep</button>
-    
-    <button onclick="stopRadio()" style="background: #ff4444;">⏹️ Стоп</button>
+  function setStatus(t){ status.textContent = t; }
 
-    <script>
-        let currentAudio = null;
-        let currentButton = null;
+  playBtn.addEventListener('click', function(){
+    // пользовательское действие — позволяет начать воспроизведение
+    player.load(); // убедиться, что источник загружен
+    var p = player.play();
+    if (p && p.then) {
+      p.then(function(){ setStatus('Играет'); })
+       .catch(function(err){
+         console.error('play error', err);
+         setStatus('Ошибка воспроизведения: ' + (err && err.message ? err.message : 'неизвестно'));
+       });
+    } else {
+      // старые браузеры: no promise
+      setStatus('Инициализация...');
+      // ставим таймаут — через короткое время проверим paused
+      setTimeout(function(){ setStatus(player.paused ? 'Не удалось запустить' : 'Играет'); }, 800);
+    }
+  });
 
-        function playStation(button, stationName, urls) {
-            stopRadio();
-            document.getElementById('status').textContent = `Подключение: ${stationName}...`;
-            document.getElementById('status').style.color = 'orange';
+  stopBtn.addEventListener('click', function(){
+    try { player.pause(); setStatus('Пауза'); } catch(e){ setStatus('Ошибка паузы'); }
+  });
 
-            tryNextUrl(0);
+  // события для информирования
+  player.addEventListener('waiting', function(){ setStatus('Буферизация...'); });
+  player.addEventListener('playing', function(){ setStatus('Играет'); });
+  player.addEventListener('pause', function(){ setStatus('Пауза'); });
+  player.addEventListener('error', function(){
+    var e = player.error;
+    var msg = 'Ошибка потока';
+    if (e) msg += ' (code ' + e.code + ')';
+    setStatus(msg);
+  });
 
-            function tryNextUrl(index) {
-                if (index >= urls.length) {
-                    document.getElementById('status').textContent = `Все ссылки для ${stationName} не работают`;
-                    document.getElementById('status').style.color = 'red';
-                    return;
-                }
-
-                const audio = new Audio();
-                audio.src = urls[index];
-                audio.preload = 'none';
-
-                document.getElementById('status').textContent = `Попытка ${index + 1}/${urls.length}: ${stationName}`;
-
-                audio.play().then(() => {
-                    currentAudio = audio;
-                    currentButton = button;
-                    button.classList.add('playing');
-                    document.getElementById('status').textContent = `▶️ ${stationName}`;
-                    document.getElementById('status').style.color = 'lime';
-                }).catch(error => {
-                    // Пробуем следующую ссылку
-                    tryNextUrl(index + 1);
-                });
-            }
-        }
-
-        function stopRadio() {
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-            if (currentButton) {
-                currentButton.classList.remove('playing');
-                currentButton = null;
-            }
-            document.getElementById('status').textContent = '⏹️ Остановлено';
-            document.getElementById('status').style.color = 'gray';
-        }
-    </script>
+})();
+</script>
 </body>
 </html>
