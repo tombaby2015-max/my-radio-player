@@ -20,8 +20,10 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 0;
+    gap: 16px;
     padding: 12px;
+    max-width: 320px;
+    margin: 0 auto;
   }
   .card {
     width: 140px;
@@ -30,11 +32,11 @@
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     text-align: center;
-    /* Черная рамка толщиной 1мм (примерно 4px) */
     border: 4px solid #000;
     box-sizing: border-box;
     cursor: pointer;
     transition: border-color 0.3s;
+    position: relative;
   }
   /* Красная рамка для активной станции */
   .card.active {
@@ -43,9 +45,39 @@
   .card img {
     width: 100%;
     height: 140px;
-    /* Закругляем углы картинки */
     border-radius: 12px;
     object-fit: cover;
+  }
+  /* Кнопка редактирования в углу */
+  .edit-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: white;
+    cursor: pointer;
+    z-index: 10;
+  }
+  /* Карточка для добавления новой станции */
+  .add-card {
+    border: 2px dashed #444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: #666;
+    background: transparent;
+  }
+  .add-card:hover {
+    border-color: #888;
+    color: #888;
   }
   #status {
     text-align: center;
@@ -56,42 +88,268 @@
   audio, video {
     display: none;
   }
+  
+  /* Модальное окно */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-content {
+    background: #1c1c1c;
+    padding: 20px;
+    border-radius: 16px;
+    width: 300px;
+    max-width: 90%;
+  }
+  .modal h2 {
+    margin-top: 0;
+    text-align: center;
+  }
+  .form-group {
+    margin-bottom: 15px;
+  }
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+  }
+  .form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #444;
+    border-radius: 8px;
+    background: #2a2a2a;
+    color: white;
+    box-sizing: border-box;
+  }
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .btn-primary {
+    background: #0a84ff;
+    color: white;
+  }
+  .btn-secondary {
+    background: #444;
+    color: white;
+  }
+  .btn-danger {
+    background: #ff3b30;
+    color: white;
+  }
 </style>
 </head>
 <body>
   <h1>Интернет-радио</h1>
-  <div class="grid">
-    <div class="card" onclick="toggleStation('https://h.getradio.me/spdeep/hls.m3u8','SoundPark Deep', this)">
-      <img src="https://yt3.googleusercontent.com/ytc/AIdro_lJTw4VkYle3-UEtE-IA7sni1SyTx9Uqvxp10UvSHRMIqk=s900-c-k-c0x00ffffff-no-rj" alt="SoundPark Deep">
-    </div>
-
-    <div class="card" onclick="toggleStation('https://h.getradio.me/svoefm/hls.m3u8','Svoe FM', this)">
-      <img src="https://static10.tgstat.ru/channels/_0/f9/f9d9076a2feff054391254eb50e2794f.jpg" alt="Svoe FM">
-    </div>
-
-    <div class="card" onclick="toggleStation('https://h.getradio.me/bestdeepfm/hls.m3u8','Best Deep FM', this)">
-      <img src="https://static.tildacdn.com/tild3431-6236-4139-b533-326566616136/Original12_2.png" alt="Best Deep FM">
-    </div>
-
-    <div class="card" onclick="toggleStation('https://h.getradio.me/luxury/hls.m3u8','Luxury Music DeepH', this)">
-      <img src="https://yt3.googleusercontent.com/ytc/AIdro_mcxZehF6Fv0yPccj0nnnhcvRbxlNrC1EhlodWWZ-KWArI=s900-c-k-c0x00ffffff-no-rj" alt="Luxury Music DeepH">
-    </div>
-
-    <div class="card" onclick="toggleStation('https://h.getradio.me/delishdeep/hls.m3u8','Delish Deep', this)">
-      <img src="https://avatars.mds.yandex.net/i?id=ef3d0278cc7b1a792a5677b4d61de256_l-5209794-images-thumbs&n=13" alt="Delish Deep">
-    </div>
+  <div class="grid" id="stationsGrid">
+    <!-- Станции будут добавляться динамически -->
   </div>
 
   <div id="status">Выберите станцию</div>
+
+  <!-- Модальное окно для редактирования/добавления -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <h2 id="modalTitle">Добавить радиостанцию</h2>
+      <div class="form-group">
+        <label for="stationName">Название станции *</label>
+        <input type="text" id="stationName" required>
+      </div>
+      <div class="form-group">
+        <label for="stationImage">URL изображения</label>
+        <input type="text" id="stationImage" placeholder="https://example.com/image.jpg">
+      </div>
+      <div class="form-group">
+        <label for="stationUrl">URL аудиопотока *</label>
+        <input type="text" id="stationUrl" required placeholder="https://example.com/stream.m3u8">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+        <button class="btn btn-danger" id="deleteBtn" style="display:none" onclick="deleteStation()">Удалить</button>
+        <button class="btn btn-primary" onclick="saveStation()">Сохранить</button>
+      </div>
+    </div>
+  </div>
 
   <video id="player" preload="none" playsinline webkit-playsinline></video>
 
 <script>
   var player = document.getElementById('player');
   var statusEl = document.getElementById('status');
+  var stationsGrid = document.getElementById('stationsGrid');
+  var editModal = document.getElementById('editModal');
+  var modalTitle = document.getElementById('modalTitle');
+  var deleteBtn = document.getElementById('deleteBtn');
+  
   var currentActiveCard = null;
   var currentStationUrl = null;
+  var editingIndex = -1; // -1 для новой станции, иначе индекс редактируемой
+  
+  // Начальные данные радиостанций
+  var stations = [
+    {
+      name: "SoundPark Deep",
+      image: "https://yt3.googleusercontent.com/ytc/AIdro_lJTw4VkYle3-UEtE-IA7sni1SyTx9Uqvxp10UvSHRMIqk=s900-c-k-c0x00ffffff-no-rj",
+      url: "https://h.getradio.me/spdeep/hls.m3u8"
+    },
+    {
+      name: "Svoe FM",
+      image: "https://static10.tgstat.ru/channels/_0/f9/f9d9076a2feff054391254eb50e2794f.jpg",
+      url: "https://h.getradio.me/svoefm/hls.m3u8"
+    },
+    {
+      name: "Best Deep FM",
+      image: "https://static.tildacdn.com/tild3431-6236-4139-b533-326566616136/Original12_2.png",
+      url: "https://h.getradio.me/bestdeepfm/hls.m3u8"
+    },
+    {
+      name: "Luxury Music DeepH",
+      image: "https://yt3.googleusercontent.com/ytc/AIdro_mcxZehF6Fv0yPccj0nnnhcvRbxlNrC1EhlodWWZ-KWArI=s900-c-k-c0x00ffffff-no-rj",
+      url: "https://h.getradio.me/luxury/hls.m3u8"
+    },
+    {
+      name: "Delish Deep",
+      image: "https://avatars.mds.yandex.net/i?id=ef3d0278cc7b1a792a5677b4d61de256_l-5209794-images-thumbs&n=13",
+      url: "https://h.getradio.me/delishdeep/hls.m3u8"
+    }
+  ];
 
+  // Загружаем станции из localStorage если есть
+  function loadStations() {
+    var savedStations = localStorage.getItem('radioStations');
+    if (savedStations) {
+      stations = JSON.parse(savedStations);
+    }
+    renderStations();
+  }
+
+  // Сохраняем станции в localStorage
+  function saveStations() {
+    localStorage.setItem('radioStations', JSON.stringify(stations));
+  }
+
+  // Отрисовываем все станции
+  function renderStations() {
+    stationsGrid.innerHTML = '';
+    
+    // Отрисовываем существующие станции
+    stations.forEach(function(station, index) {
+      var card = document.createElement('div');
+      card.className = 'card';
+      card.onclick = function() { toggleStation(station.url, station.name, card); };
+      
+      var img = document.createElement('img');
+      img.src = station.image;
+      img.alt = station.name;
+      
+      var editBtn = document.createElement('div');
+      editBtn.className = 'edit-btn';
+      editBtn.innerHTML = '✎';
+      editBtn.onclick = function(e) {
+        e.stopPropagation(); // Предотвращаем запуск радио при клике на кнопку редактирования
+        openEditModal(index);
+      };
+      
+      card.appendChild(img);
+      card.appendChild(editBtn);
+      stationsGrid.appendChild(card);
+    });
+    
+    // Добавляем карточку для создания новой станции
+    var addCard = document.createElement('div');
+    addCard.className = 'card add-card';
+    addCard.innerHTML = '+';
+    addCard.onclick = function() { openEditModal(-1); };
+    stationsGrid.appendChild(addCard);
+  }
+
+  // Открываем модальное окно для редактирования
+  function openEditModal(index) {
+    editingIndex = index;
+    
+    if (index === -1) {
+      // Новая станция
+      modalTitle.textContent = 'Добавить радиостанцию';
+      document.getElementById('stationName').value = '';
+      document.getElementById('stationImage').value = '';
+      document.getElementById('stationUrl').value = '';
+      deleteBtn.style.display = 'none';
+    } else {
+      // Редактирование существующей
+      modalTitle.textContent = 'Редактировать радиостанцию';
+      document.getElementById('stationName').value = stations[index].name;
+      document.getElementById('stationImage').value = stations[index].image;
+      document.getElementById('stationUrl').value = stations[index].url;
+      deleteBtn.style.display = 'inline-block';
+    }
+    
+    editModal.style.display = 'flex';
+  }
+
+  // Закрываем модальное окно
+  function closeModal() {
+    editModal.style.display = 'none';
+  }
+
+  // Сохраняем станцию
+  function saveStation() {
+    var name = document.getElementById('stationName').value;
+    var image = document.getElementById('stationImage').value;
+    var url = document.getElementById('stationUrl').value;
+    
+    // Проверяем обязательные поля
+    if (!name || !url) {
+      alert('Пожалуйста, заполните обязательные поля (название и URL потока)');
+      return;
+    }
+    
+    // Если изображение не указано, используем заглушку
+    if (!image) {
+      image = 'https://via.placeholder.com/140x140/1c1c1c/666?text=Radio';
+    }
+    
+    if (editingIndex === -1) {
+      // Добавляем новую станцию
+      stations.push({ name, image, url });
+    } else {
+      // Обновляем существующую
+      stations[editingIndex] = { name, image, url };
+    }
+    
+    saveStations();
+    renderStations();
+    closeModal();
+  }
+
+  // Удаляем станцию
+  function deleteStation() {
+    if (editingIndex !== -1 && confirm('Вы уверены, что хотите удалить эту радиостанцию?')) {
+      stations.splice(editingIndex, 1);
+      saveStations();
+      renderStations();
+      closeModal();
+      stopRadio(); // Останавливаем воспроизведение если удалили активную станцию
+    }
+  }
+
+  // Включение/выключение станции
   function toggleStation(url, name, cardElement) {
     // Если кликаем на уже активную станцию - останавливаем
     if (currentActiveCard === cardElement) {
@@ -166,6 +424,18 @@
       currentStationUrl = null;
     }
   });
+
+  // Инициализация при загрузке страницы
+  window.onload = function() {
+    loadStations();
+    
+    // Закрытие модального окна при клике вне его
+    editModal.onclick = function(e) {
+      if (e.target === editModal) {
+        closeModal();
+      }
+    };
+  };
 </script>
 </body>
 </html>
