@@ -25,9 +25,8 @@
   .tabs-container {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 20px;
-    margin-bottom: 5px;
+    justify-content: space-between;
+    margin: 0 20px 5px 20px;
   }
   
   .tab {
@@ -36,6 +35,15 @@
     font-size: 18px;
     cursor: pointer;
     transition: color 0.3s;
+    flex: 1;
+  }
+  
+  .tab-left {
+    text-align: left;
+  }
+  
+  .tab-right {
+    text-align: right;
   }
   
   .tab.active {
@@ -50,18 +58,14 @@
   .separator {
     font-size: 18px;
     color: #444;
+    margin: 0 20px;
   }
   
   .status-bar {
-    text-align: center;
+    text-align: left;
     font-size: 12px;
     color: #666;
-    margin-bottom: 10px;
-  }
-  
-  .separator-small {
-    margin: 0 8px;
-    color: #444;
+    margin: 0 20px 10px 20px;
   }
 
   .grid {
@@ -265,13 +269,11 @@
 <body>
   <div class="header-fixed">
     <div class="tabs-container">
-      <div class="tab active" id="radioTab" onclick="switchTab('radio')">My Radio</div>
+      <div class="tab tab-left active" id="radioTab" onclick="switchTab('radio')">My Radio</div>
       <div class="separator">/</div>
-      <div class="tab inactive" id="telegramTab" onclick="switchTab('telegram')">My Telegram</div>
+      <div class="tab tab-right inactive" id="telegramTab" onclick="switchTab('telegram')">My Telegram</div>
     </div>
-    <div class="status-bar">
-      <span id="syncStatus">синхронизировано</span>
-      <span class="separator-small">/</span>
+    <div class="status-bar" id="statusBar">
       <span id="playStatus">остановлено</span>
     </div>
   </div>
@@ -331,6 +333,7 @@
   var modalTitle = document.getElementById('modalTitle');
   var deleteBtn = document.getElementById('deleteBtn');
   var telegramMusicList = document.getElementById('telegramMusicList');
+  var statusBar = document.getElementById('statusBar');
   
   var currentActiveCard = null;
   var currentStationUrl = null;
@@ -374,12 +377,15 @@
     currentTab = tab;
     
     // Обновляем активность вкладок
-    document.getElementById('radioTab').className = tab === 'radio' ? 'tab active' : 'tab inactive';
-    document.getElementById('telegramTab').className = tab === 'telegram' ? 'tab active' : 'tab inactive';
+    document.getElementById('radioTab').className = tab === 'radio' ? 'tab tab-left active' : 'tab tab-left inactive';
+    document.getElementById('telegramTab').className = tab === 'telegram' ? 'tab tab-right active' : 'tab tab-right inactive';
     
     // Показываем/скрываем контент
     document.getElementById('radioTabContent').style.display = tab === 'radio' ? 'flex' : 'none';
     document.getElementById('telegramTabContent').style.display = tab === 'telegram' ? 'flex' : 'none';
+    
+    // Показываем/скрываем статус воспроизведения
+    statusBar.style.display = tab === 'radio' ? 'block' : 'none';
     
     // Останавливаем воспроизведение при переключении
     stopRadio();
@@ -447,11 +453,8 @@
         body: JSON.stringify(currentData)
       });
       
-      document.getElementById('syncStatus').textContent = "синхронизировано";
-      
     } catch (error) {
       console.error('Ошибка сохранения музыки Telegram:', error);
-      document.getElementById('syncStatus').textContent = "ошибка синхронизации";
     }
   }
 
@@ -520,7 +523,6 @@
     
     // Активируем текущий трек
     trackElement.classList.add('active');
-    updatePlayStatus("буферизация...");
     
     // Проигрываем аудио
     player.innerHTML = '<source src="'+url+'" type="audio/mpeg">';
@@ -529,10 +531,9 @@
     var playPromise = player.play();
     if (playPromise !== undefined) {
       playPromise.then(function() {
-        updatePlayStatus("играет: " + name);
+        // Для Telegram не показываем статус
       }).catch(function(error) {
         console.error("Ошибка воспроизведения:", error);
-        updatePlayStatus("ошибка");
         trackElement.classList.remove('active');
         currentActiveCard = null;
         currentStationUrl = null;
@@ -655,17 +656,13 @@
   // Загрузка станций
   function loadStations() {
     try {
-      document.getElementById('syncStatus').textContent = "синхронизация...";
-      
       // Сначала пробуем локальное хранилище
       const localStations = localStorage.getItem('radioStations');
       if (localStations) {
         stations = JSON.parse(localStations);
-        document.getElementById('syncStatus').textContent = "локальные данные";
         renderStations();
       } else {
         stations = [...defaultStations];
-        document.getElementById('syncStatus').textContent = "начальные станции";
         renderStations();
       }
       
@@ -683,7 +680,6 @@
         .then(data => {
           if (data.record && data.record.stations && data.record.stations.length > 0) {
             stations = data.record.stations;
-            document.getElementById('syncStatus').textContent = "синхронизировано";
             renderStations();
           }
         })
@@ -845,11 +841,15 @@
 
   // Обработчики событий плеера
   player.addEventListener('waiting', function(){ 
-    updatePlayStatus("буферизация..."); 
+    if (currentTab === 'radio') {
+      updatePlayStatus("буферизация..."); 
+    }
   });
   
   player.addEventListener('error', function(){ 
-    updatePlayStatus("ошибка"); 
+    if (currentTab === 'radio') {
+      updatePlayStatus("ошибка"); 
+    }
     if (currentActiveCard) {
       currentActiveCard.classList.remove('active');
       currentActiveCard = null;
