@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>My Radio</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
   body {
     margin: 0;
@@ -186,10 +187,9 @@
 </style>
 </head>
 <body>
-  <!-- ФИКСИРОВАННЫЙ ЗАГОЛОВОК -->
   <div class="header-fixed">
     <div class="header-top">
-      <h1>My Radio <span class="version">v2.0</span></h1>
+      <h1>My Radio <span class="version">v1.0</span></h1>
     </div>
     <div class="status-bar">
       <span id="syncStatus">синхронизировано</span>
@@ -198,12 +198,10 @@
     </div>
   </div>
 
-  <!-- СЕТКА С РАДИОСТАНЦИЯМИ -->
   <div class="grid" id="stationsGrid">
     <div class="loading">Загрузка радиостанций...</div>
   </div>
 
-  <!-- МОДАЛЬНОЕ ОКНО -->
   <div class="modal" id="editModal">
     <div class="modal-content">
       <h2 id="modalTitle">Добавить радиостанцию</h2>
@@ -230,7 +228,6 @@
   <video id="player" preload="none" playsinline webkit-playsinline></video>
 
 <script>
-  // Конфигурация JSONBin с вашими ключами
   const JSONBIN_BIN_ID = '68daac46ae596e708f001aca';
   const JSONBIN_API_KEY = '$2a$10$3RWbk8Hlfsp34qpkemmhS.il8iMVgaGFvSvy2hn6TIpz4Irf1csdu';
   
@@ -244,8 +241,8 @@
   var currentStationUrl = null;
   var editingIndex = -1;
   var stations = [];
+  var hls = null;
 
-  // Начальные станции
   const defaultStations = [
     {
       name: "SoundPark Deep",
@@ -274,12 +271,117 @@
     }
   ];
 
-  // Функция обновления статуса воспроизведения
   function updatePlayStatus(text) {
     document.getElementById('playStatus').textContent = text;
   }
 
-  // Загружаем станции из JSONBin
+  function toggleStation(url, name, cardElement) {
+    if (currentActiveCard === cardElement) {
+      stopRadio();
+      return;
+    }
+    
+    stopRadio();
+    
+    currentActiveCard = cardElement;
+    currentStationUrl = url;
+    
+    cardElement.classList.add('active');
+    updatePlayStatus("буферизация...");
+    
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    
+    if (player.canPlayType('application/vnd.apple.mpegurl')) {
+      playNativeHLS(url, name, cardElement);
+    } else if (Hls.isSupported()) {
+      playWithHlsJs(url, name, cardElement);
+    } else {
+      updatePlayStatus("браузер не поддерживает");
+      cardElement.classList.remove('active');
+      currentActiveCard = null;
+      currentStationUrl = null;
+    }
+  }
+
+  function playNativeHLS(url, name, cardElement) {
+    player.innerHTML = '<source src="'+url+'" type="application/vnd.apple.mpegurl">';
+    player.load();
+    
+    var playPromise = player.play();
+    if (playPromise !== undefined) {
+      playPromise.then(function() {
+        updatePlayStatus("играет: " + name);
+      }).catch(function(error) {
+        console.error("Ошибка воспроизведения:", error);
+        updatePlayStatus("ошибка");
+        cardElement.classList.remove('active');
+        currentActiveCard = null;
+        currentStationUrl = null;
+      });
+    }
+  }
+
+  function playWithHlsJs(url, name, cardElement) {
+    updatePlayStatus("подготовка HLS...");
+    
+    hls = new Hls({
+      enableWorker: false,
+      lowLatencyMode: true,
+      backBufferLength: 90
+    });
+    
+    hls.loadSource(url);
+    hls.attachMedia(player);
+    
+    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+      var playPromise = player.play();
+      if (playPromise !== undefined) {
+        playPromise.then(function() {
+          updatePlayStatus("играет: " + name);
+        }).catch(function(error) {
+          console.error("Ошибка воспроизведения HLS.js:", error);
+          updatePlayStatus("ошибка воспроизведения");
+          cardElement.classList.remove('active');
+          currentActiveCard = null;
+          currentStationUrl = null;
+        });
+      }
+    });
+    
+    hls.on(Hls.Events.ERROR, function(event, data) {
+      console.error("HLS.js ошибка:", data);
+      if (data.fatal) {
+        updatePlayStatus("ошибка потока");
+        cardElement.classList.remove('active');
+        currentActiveCard = null;
+        currentStationUrl = null;
+      }
+    });
+  }
+
+  function stopRadio() {
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    
+    try { 
+      player.pause();
+      player.currentTime = 0;
+    } catch(e) {}
+    
+    if (currentActiveCard) {
+      currentActiveCard.classList.remove('active');
+      currentActiveCard = null;
+      currentStationUrl = null;
+    }
+    
+    updatePlayStatus("остановлено");
+  }
+
   async function loadStations() {
     try {
       document.getElementById('syncStatus').textContent = "синхронизация...";
@@ -320,7 +422,6 @@
     }
   }
 
-  // Сохраняем станции в JSONBin
   async function saveStationsToCloud() {
     try {
       document.getElementById('syncStatus').textContent = "сохранение...";
@@ -348,7 +449,6 @@
     }
   }
 
-  // Отрисовываем все станции
   function renderStations() {
     stationsGrid.innerHTML = '';
     
@@ -374,7 +474,6 @@
       stationsGrid.appendChild(card);
     });
     
-    // Добавляем карточку для создания новой станции
     var addCard = document.createElement('div');
     addCard.className = 'card add-card';
     addCard.innerHTML = '+';
@@ -441,61 +540,6 @@
     }
   }
 
-  function toggleStation(url, name, cardElement) {
-    if (currentActiveCard === cardElement) {
-      stopRadio();
-      return;
-    }
-    
-    stopRadio();
-    
-    currentActiveCard = cardElement;
-    currentStationUrl = url;
-    
-    cardElement.classList.add('active');
-    updatePlayStatus("буферизация...");
-    
-    player.innerHTML = '<source src="'+url+'" type="application/vnd.apple.mpegurl">';
-    player.load();
-    var p = player.play();
-    if(p && p.then){
-      p.then(function(){ 
-        updatePlayStatus("играет: " + name); 
-      })
-       .catch(function(e){ 
-         updatePlayStatus("ошибка"); 
-         cardElement.classList.remove('active');
-         currentActiveCard = null;
-         currentStationUrl = null;
-       });
-    } else {
-      setTimeout(function(){
-        if (player.paused) {
-          updatePlayStatus("не удалось");
-          cardElement.classList.remove('active');
-          currentActiveCard = null;
-          currentStationUrl = null;
-        } else {
-          updatePlayStatus("играет: " + name);
-        }
-      },700);
-    }
-  }
-
-  function stopRadio() {
-    try { 
-      player.pause(); 
-    } catch(e) {}
-    
-    if (currentActiveCard) {
-      currentActiveCard.classList.remove('active');
-      currentActiveCard = null;
-      currentStationUrl = null;
-    }
-    
-    updatePlayStatus("остановлено");
-  }
-
   player.addEventListener('waiting', function(){ 
     updatePlayStatus("буферизация..."); 
   });
@@ -509,7 +553,6 @@
     }
   });
 
-  // Инициализация
   window.onload = function() {
     loadStations();
     
