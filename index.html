@@ -52,21 +52,16 @@
     transform: translateY(-50%);
     width: 32px;
     height: 32px;
-    border: 1px solid #fff;
-    border-radius: 50%;
-    background: #000;
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 12px;
-    color: #fff;
-    font-weight: bold;
   }
   
   .sleep-timer-btn img {
-    width: 18px;
-    height: 18px;
+    width: 28px;
+    height: 28px;
     filter: invert(1);
   }
   
@@ -325,7 +320,7 @@
     <div class="header-top">
       <h1>My Radio <span class="version">v1.2</span></h1>
       <div class="sleep-timer-btn" id="sleepTimerBtn" onclick="openTimerModal()">
-        <img src="https://cdn.vectorstock.com/i/1000v/33/63/clock-icon-black-and-white-vector-24983363.jpg" alt="Таймер" onerror="this.style.display='none'; this.parentElement.innerHTML='⏰';">
+        <img src="https://p1.hiclipart.com/preview/237/387/613/alarm-clock-icon-clock-icon-networking-icon-hotels-icon-white-black-text-circle-logo-symbol-png-clipart.jpg" alt="Таймер" onerror="this.style.display='none'; this.parentElement.innerHTML='⏰';">
       </div>
     </div>
     <div class="status-bar">
@@ -447,7 +442,7 @@
     }
   ];
 
-  // Простая инициализация селектора времени
+  // Инициализация селектора времени
   function initTimeSelector() {
     const hoursList = document.getElementById('hoursList');
     const minutesList = document.getElementById('minutesList');
@@ -475,9 +470,80 @@
     }
     
     // Устанавливаем начальное значение 0:00
+    setTimeSelection(0, 0);
+    
+    // Добавляем обработчики скролла
+    setupTimeScrolling('hoursScroll', 'hoursList');
+    setupTimeScrolling('minutesScroll', 'minutesList');
+  }
+
+  function setupTimeScrolling(scrollId, listId) {
+    const scroll = document.getElementById(scrollId);
+    const list = document.getElementById(listId);
+    
+    let isScrolling = false;
+    let startY = 0;
+    let currentY = 0;
+    
+    const handleStart = (e) => {
+      isScrolling = true;
+      startY = e.touches ? e.touches[0].clientY : e.clientY;
+      currentY = parseInt(list.style.transform?.replace('translateY(', '').replace('px)', '') || '0');
+      e.preventDefault();
+    };
+    
+    const handleMove = (e) => {
+      if (!isScrolling) return;
+      const currentYPos = e.touches ? e.touches[0].clientY : e.clientY;
+      const deltaY = currentYPos - startY;
+      const newY = currentY + deltaY;
+      
+      const maxY = 0;
+      const minY = -((list.children.length - 3) * 40);
+      const constrainedY = Math.max(minY, Math.min(maxY, newY));
+      
+      list.style.transform = `translateY(${constrainedY}px)`;
+      updateActiveTimeItem(list, constrainedY);
+      e.preventDefault();
+    };
+    
+    const handleEnd = () => {
+      isScrolling = false;
+      snapToNearest(list);
+    };
+    
+    // Touch events
+    scroll.addEventListener('touchstart', handleStart, { passive: false });
+    scroll.addEventListener('touchmove', handleMove, { passive: false });
+    scroll.addEventListener('touchend', handleEnd);
+    
+    // Mouse events
+    scroll.addEventListener('mousedown', handleStart);
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+  }
+
+  function updateActiveTimeItem(list, translateY) {
+    const items = list.children;
+    const activeIndex = Math.round(-translateY / 40) + 1;
+    
+    for (let i = 0; i < items.length; i++) {
+      items[i].classList.toggle('active', i === activeIndex);
+    }
+  }
+
+  function snapToNearest(list) {
+    const currentTranslate = parseInt(list.style.transform?.replace('translateY(', '').replace('px)', '') || '0');
+    const targetIndex = Math.round(-currentTranslate / 40);
+    const targetTranslate = -targetIndex * 40;
+    
+    list.style.transition = 'transform 0.2s ease';
+    list.style.transform = `translateY(${targetTranslate}px)`;
+    
     setTimeout(() => {
-      setTimeSelection(0, 0);
-    }, 100);
+      list.style.transition = '';
+      updateActiveTimeItem(list, targetTranslate);
+    }, 200);
   }
 
   function setTimeSelection(hours, minutes) {
@@ -560,9 +626,33 @@
     sleepEndTime = new Date();
     sleepEndTime.setMinutes(sleepEndTime.getMinutes() + minutes);
     
-    // Запускаем таймер
+    // Сохраняем в localStorage
+    localStorage.setItem('sleepTimerEnd', sleepEndTime.getTime().toString());
+    localStorage.setItem('sleepTimerDuration', minutes.toString());
+    
     sleepTimer = setInterval(updateSleepTimerDisplay, 1000);
     updateSleepTimerDisplay();
+  }
+
+  // Восстанавливаем таймер при загрузке
+  function restoreSleepTimer() {
+    const savedEndTime = localStorage.getItem('sleepTimerEnd');
+    const savedDuration = localStorage.getItem('sleepTimerDuration');
+    
+    if (savedEndTime && savedDuration) {
+      const endTime = parseInt(savedEndTime);
+      const now = new Date().getTime();
+      
+      if (endTime > now) {
+        // Таймер еще активен
+        sleepEndTime = new Date(endTime);
+        const remainingMinutes = Math.ceil((endTime - now) / 60000);
+        setSleepTimer(remainingMinutes);
+      } else {
+        // Таймер истек
+        clearSleepTimerStorage();
+      }
+    }
   }
 
   function clearSleepTimer() {
@@ -571,9 +661,15 @@
       sleepTimer = null;
     }
     sleepEndTime = null;
-    // Возвращаем иконку часов
+    clearSleepTimerStorage();
+    
     const timerBtn = document.getElementById('sleepTimerBtn');
-    timerBtn.innerHTML = '<img src="https://cdn.vectorstock.com/i/1000v/33/63/clock-icon-black-and-white-vector-24983363.jpg" alt="Таймер" onerror="this.style.display=\'none\'; this.parentElement.innerHTML=\'⏰\';">';
+    timerBtn.innerHTML = '<img src="https://p1.hiclipart.com/preview/237/387/613/alarm-clock-icon-clock-icon-networking-icon-hotels-icon-white-black-text-circle-logo-symbol-png-clipart.jpg" alt="Таймер" onerror="this.style.display=\'none\'; this.parentElement.innerHTML=\'⏰\';">';
+  }
+
+  function clearSleepTimerStorage() {
+    localStorage.removeItem('sleepTimerEnd');
+    localStorage.removeItem('sleepTimerDuration');
   }
 
   function updateSleepTimerDisplay() {
@@ -905,6 +1001,7 @@
   document.addEventListener('DOMContentLoaded', function() {
     loadStations();
     initTimeSelector();
+    restoreSleepTimer(); // Восстанавливаем таймер
     
     // Обработчики модальных окон
     if (editModal) {
@@ -919,32 +1016,6 @@
       timerModal.addEventListener('click', function(e) {
         if (e.target === timerModal) {
           closeTimerModal();
-        }
-      });
-    }
-    
-    // Простые обработчики для таймера
-    const hoursScroll = document.getElementById('hoursScroll');
-    const minutesScroll = document.getElementById('minutesScroll');
-    
-    if (hoursScroll) {
-      hoursScroll.addEventListener('click', function(e) {
-        const rect = this.getBoundingClientRect();
-        const clickY = e.clientY - rect.top;
-        const itemIndex = Math.floor(clickY / 40);
-        if (itemIndex >= 0 && itemIndex <= 12) {
-          setTimeSelection(itemIndex, getSelectedTime().minutes);
-        }
-      });
-    }
-    
-    if (minutesScroll) {
-      minutesScroll.addEventListener('click', function(e) {
-        const rect = this.getBoundingClientRect();
-        const clickY = e.clientY - rect.top;
-        const itemIndex = Math.floor(clickY / 40);
-        if (itemIndex >= 0 && itemIndex <= 59) {
-          setTimeSelection(getSelectedTime().hours, itemIndex);
         }
       });
     }
