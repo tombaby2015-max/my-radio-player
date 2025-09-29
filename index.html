@@ -20,8 +20,8 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    /* Увеличиваем расстояние между карточками */
-    gap: 24px;
+    /* Убираем расстояние между карточками */
+    gap: 0;
     padding: 12px;
   }
   .card {
@@ -31,6 +31,9 @@
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     text-align: center;
+    /* Добавляем черную рамку толщиной 3мм (примерно 11px) */
+    border: 11px solid #000;
+    box-sizing: border-box;
   }
   .card img {
     width: 100%;
