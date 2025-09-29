@@ -52,15 +52,16 @@
     transform: translateY(-50%);
     width: 32px;
     height: 32px;
-    border: 2px solid #fff;
+    border: 1px solid #fff;
     border-radius: 50%;
     background: #000;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 12px;
     color: #fff;
+    font-weight: bold;
   }
   
   .status-bar {
@@ -128,13 +129,13 @@
     border: 1px solid #444;
     border-radius: 10px;
     background: #2a2a2a;
+    position: relative;
   }
 
   .time-list {
     display: flex;
     flex-direction: column;
     align-items: center;
-    transition: transform 0.3s ease;
   }
 
   .time-item {
@@ -173,6 +174,11 @@
 
   .timer-cancel {
     background: #444;
+    color: white;
+  }
+
+  .timer-stop {
+    background: #ff3b30;
     color: white;
   }
 
@@ -330,7 +336,7 @@
   <!-- Модальное окно таймера -->
   <div class="timer-modal" id="timerModal">
     <div class="timer-content">
-      <div class="timer-title">Таймер сна</div>
+      <div class="timer-title" id="timerModalTitle">Таймер сна</div>
       <div class="time-selector">
         <div class="time-column">
           <div class="time-label">Часы</div>
@@ -345,9 +351,12 @@
           </div>
         </div>
       </div>
-      <div class="timer-actions">
+      <div class="timer-actions" id="timerActions">
         <button class="timer-action-btn timer-cancel" onclick="closeTimerModal()">Отмена</button>
         <button class="timer-action-btn timer-set" onclick="setCustomTimer()">Установить</button>
+      </div>
+      <div class="timer-actions" id="timerStopAction" style="display: none; margin-top: 10px;">
+        <button class="timer-action-btn timer-stop" onclick="stopSleepTimer()">Остановить таймер</button>
       </div>
     </div>
   </div>
@@ -389,6 +398,9 @@
   var deleteBtn = document.getElementById('deleteBtn');
   var timerModal = document.getElementById('timerModal');
   var sleepTimerBtn = document.getElementById('sleepTimerBtn');
+  var timerModalTitle = document.getElementById('timerModalTitle');
+  var timerActions = document.getElementById('timerActions');
+  var timerStopAction = document.getElementById('timerStopAction');
   
   var currentActiveCard = null;
   var currentStationUrl = null;
@@ -397,8 +409,6 @@
   var hls = null;
   var sleepTimer = null;
   var sleepEndTime = null;
-  var selectedHours = 0;
-  var selectedMinutes = 15;
 
   const defaultStations = [
     {
@@ -442,7 +452,7 @@
       hoursList.appendChild(hourItem);
     }
     
-    // Минуты от 0 до 59 с шагом 1
+    // Минуты от 0 до 59 с шагом 5
     for (let i = 0; i <= 59; i++) {
       const minuteItem = document.createElement('div');
       minuteItem.className = 'time-item';
@@ -451,79 +461,61 @@
       minutesList.appendChild(minuteItem);
     }
     
-    // Установка начальных значений
-    setTimeSelection(0, 15);
+    // Установка начальных значений на 0:00
+    setTimeSelection(0, 0);
     
     // Добавляем обработчики скролла
-    setupTimeScrolling('hoursScroll', 'hoursList', 0);
-    setupTimeScrolling('minutesScroll', 'minutesList', 15);
+    setupTimeScrolling('hoursScroll', 'hoursList');
+    setupTimeScrolling('minutesScroll', 'minutesList');
   }
 
-  function setupTimeScrolling(scrollId, listId, initialValue) {
+  function setupTimeScrolling(scrollId, listId) {
     const scroll = document.getElementById(scrollId);
     const list = document.getElementById(listId);
     
-    let isScrolling = false;
     let startY = 0;
-    let currentY = 0;
+    let currentTranslate = 0;
     
-    scroll.addEventListener('touchstart', (e) => {
-      isScrolling = true;
-      startY = e.touches[0].clientY;
-      currentY = parseInt(list.style.transform?.replace('translateY(', '').replace('px)', '') || '0');
-    });
-    
-    scroll.addEventListener('touchmove', (e) => {
-      if (!isScrolling) return;
+    function handleStart(e) {
       e.preventDefault();
-      const deltaY = e.touches[0].clientY - startY;
-      const newY = currentY + deltaY;
+      startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+      currentTranslate = parseInt(list.style.transform?.replace('translateY(', '').replace('px)', '') || '0');
+      document.addEventListener('touchmove', handleMove, { passive: false });
+      document.addEventListener('touchend', handleEnd);
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleEnd);
+    }
+    
+    function handleMove(e) {
+      e.preventDefault();
+      const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+      const deltaY = currentY - startY;
+      const newTranslate = currentTranslate + deltaY;
       
       // Ограничиваем скролл
-      const maxY = 0;
-      const minY = -((list.children.length - 3) * 40);
-      const constrainedY = Math.max(minY, Math.min(maxY, newY));
+      const maxTranslate = 0;
+      const minTranslate = -((list.children.length - 3) * 40);
+      const constrainedTranslate = Math.max(minTranslate, Math.min(maxTranslate, newTranslate));
       
-      list.style.transform = `translateY(${constrainedY}px)`;
-      updateActiveTimeItem(list, constrainedY);
-    });
+      list.style.transform = `translateY(${constrainedTranslate}px)`;
+      updateActiveTimeItem(list, constrainedTranslate);
+    }
     
-    scroll.addEventListener('touchend', () => {
-      isScrolling = false;
+    function handleEnd() {
+      document.removeEventListener('touchmove', handleMove);
+      document.removeEventListener('touchend', handleEnd);
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleEnd);
       snapToNearest(list);
-    });
+    }
     
-    // Для мыши
-    scroll.addEventListener('mousedown', (e) => {
-      isScrolling = true;
-      startY = e.clientY;
-      currentY = parseInt(list.style.transform?.replace('translateY(', '').replace('px)', '') || '0');
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-      if (!isScrolling) return;
-      const deltaY = e.clientY - startY;
-      const newY = currentY + deltaY;
-      
-      const maxY = 0;
-      const minY = -((list.children.length - 3) * 40);
-      const constrainedY = Math.max(minY, Math.min(maxY, newY));
-      
-      list.style.transform = `translateY(${constrainedY}px)`;
-      updateActiveTimeItem(list, constrainedY);
-    });
-    
-    document.addEventListener('mouseup', () => {
-      if (isScrolling) {
-        isScrolling = false;
-        snapToNearest(list);
-      }
-    });
+    scroll.addEventListener('touchstart', handleStart, { passive: false });
+    scroll.addEventListener('mousedown', handleStart);
   }
 
-  function updateActiveTimeItem(list, y) {
+  function updateActiveTimeItem(list, translateY) {
     const items = list.children;
-    const activeIndex = Math.round(-y / 40) + 1;
+    const activeIndex = Math.round(-translateY / 40) + 1;
     
     for (let i = 0; i < items.length; i++) {
       items[i].classList.toggle('active', i === activeIndex);
@@ -531,24 +523,20 @@
   }
 
   function snapToNearest(list) {
-    const currentY = parseInt(list.style.transform?.replace('translateY(', '').replace('px)', '') || '0');
-    const targetIndex = Math.round(-currentY / 40);
-    const targetY = -targetIndex * 40;
+    const currentTranslate = parseInt(list.style.transform?.replace('translateY(', '').replace('px)', '') || '0');
+    const targetIndex = Math.round(-currentTranslate / 40);
+    const targetTranslate = -targetIndex * 40;
     
     list.style.transition = 'transform 0.2s ease';
-    list.style.transform = `translateY(${targetY}px)`;
+    list.style.transform = `translateY(${targetTranslate}px)`;
     
     setTimeout(() => {
       list.style.transition = '';
-      updateActiveTimeItem(list, targetY);
+      updateActiveTimeItem(list, targetTranslate);
     }, 200);
   }
 
   function setTimeSelection(hours, minutes) {
-    selectedHours = hours;
-    selectedMinutes = minutes;
-    
-    // Устанавливаем позиции скроллов
     const hoursList = document.getElementById('hoursList');
     const minutesList = document.getElementById('minutesList');
     
@@ -574,6 +562,18 @@
 
   function openTimerModal() {
     timerModal.style.display = 'flex';
+    
+    // Показываем/скрываем кнопку остановки
+    if (sleepTimer) {
+      timerModalTitle.textContent = 'Таймер активен';
+      timerActions.style.display = 'none';
+      timerStopAction.style.display = 'flex';
+    } else {
+      timerModalTitle.textContent = 'Таймер сна';
+      timerActions.style.display = 'flex';
+      timerStopAction.style.display = 'none';
+      setTimeSelection(0, 0);
+    }
   }
 
   function closeTimerModal() {
@@ -590,6 +590,11 @@
       setSleepTimer(totalMinutes);
     }
     
+    closeTimerModal();
+  }
+
+  function stopSleepTimer() {
+    clearSleepTimer();
     closeTimerModal();
   }
 
@@ -633,14 +638,18 @@
       return;
     }
     
-    const minutes = Math.floor(diff / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
+    const totalMinutes = Math.floor(diff / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
     
     // Обновляем отображение в кружке
-    if (minutes > 0) {
-      sleepTimerBtn.innerHTML = minutes + ':' + seconds.toString().padStart(2, '0');
+    if (hours > 0) {
+      sleepTimerBtn.textContent = hours + ':' + minutes.toString().padStart(2, '0');
+    } else if (minutes > 0) {
+      sleepTimerBtn.textContent = minutes + 'm';
     } else {
-      sleepTimerBtn.innerHTML = seconds + 's';
+      const seconds = Math.floor((diff % 60000) / 1000);
+      sleepTimerBtn.textContent = seconds + 's';
     }
   }
 
@@ -825,6 +834,11 @@
   function renderStations() {
     stationsGrid.innerHTML = '';
     
+    if (stations.length === 0) {
+      stationsGrid.innerHTML = '<div class="loading">Нет радиостанций</div>';
+      return;
+    }
+    
     stations.forEach(function(station, index) {
       var card = document.createElement('div');
       card.className = 'card';
@@ -833,6 +847,9 @@
       var img = document.createElement('img');
       img.src = station.image;
       img.alt = station.name;
+      img.onerror = function() {
+        this.src = 'https://via.placeholder.com/140x140/1c1c1c/666?text=Radio';
+      };
       
       var editBtn = document.createElement('div');
       editBtn.className = 'edit-btn';
@@ -925,6 +942,10 @@
       currentStationUrl = null;
     }
   });
+
+  // Исправления для iOS
+  document.addEventListener('touchstart', function() {}, { passive: true });
+  document.addEventListener('touchmove', function() {}, { passive: true });
 
   window.onload = function() {
     loadStations();
