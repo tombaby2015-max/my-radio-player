@@ -20,7 +20,6 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    /* Убираем расстояние между карточками */
     gap: 0;
     padding: 12px;
   }
@@ -31,63 +30,22 @@
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     text-align: center;
-    /* Добавляем черную рамку толщиной 3мм (примерно 11px) */
-    border: 11px solid #000;
+    /* Черная рамка толщиной 1мм (примерно 4px) */
+    border: 4px solid #000;
     box-sizing: border-box;
+    cursor: pointer;
+    transition: border-color 0.3s;
+  }
+  /* Красная рамка для активной станции */
+  .card.active {
+    border-color: #ff3b30;
   }
   .card img {
     width: 100%;
-    height: 120px;
+    height: 140px;
+    /* Закругляем углы картинки */
+    border-radius: 12px;
     object-fit: cover;
-  }
-  /* Фиксируем высоту контейнера для названия */
-  .title-container {
-    height: 48px; /* Фиксированная высота для всех названий */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 4px;
-  }
-  .title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #eee;
-    /* Позволяем перенос строки */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    line-height: 1.2;
-  }
-  .controls {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    padding: 8px;
-  }
-  button {
-    flex: 1;
-    padding: 6px 0;
-    border: none;
-    border-radius: 8px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-  .play {
-    background: #0a84ff;
-    color: #fff;
-  }
-  .stop {
-    background: #444;
-    color: #fff;
-  }
-  /* Стили для активной радиостанции */
-  .active .play {
-    background: #ff3b30; /* Красный цвет для активной кнопки Play */
-  }
-  .active .title {
-    color: #ff3b30; /* Красный цвет для названия активной станции */
   }
   #status {
     text-align: center;
@@ -103,59 +61,24 @@
 <body>
   <h1>Интернет-радио</h1>
   <div class="grid">
-    <div class="card">
-      <img src="https://yt3.googleusercontent.com/ytc/AIdro_lJTw4VkYle3-UEtE-IA7sni1SyTx9Uqvxp10UvSHRMIqk=s900-c-k-c0x00ffffff-no-rj" alt="">
-      <div class="title-container">
-        <div class="title">SoundPark Deep</div>
-      </div>
-      <div class="controls">
-        <button class="play" onclick="playStation('https://h.getradio.me/spdeep/hls.m3u8','SoundPark Deep', this)">Play</button>
-        <button class="stop" onclick="stopRadio()">Stop</button>
-      </div>
+    <div class="card" onclick="toggleStation('https://h.getradio.me/spdeep/hls.m3u8','SoundPark Deep', this)">
+      <img src="https://yt3.googleusercontent.com/ytc/AIdro_lJTw4VkYle3-UEtE-IA7sni1SyTx9Uqvxp10UvSHRMIqk=s900-c-k-c0x00ffffff-no-rj" alt="SoundPark Deep">
     </div>
 
-    <div class="card">
-      <img src="https://static10.tgstat.ru/channels/_0/f9/f9d9076a2feff054391254eb50e2794f.jpg" alt="">
-      <div class="title-container">
-        <div class="title">Svoe FM</div>
-      </div>
-      <div class="controls">
-        <button class="play" onclick="playStation('https://h.getradio.me/svoefm/hls.m3u8','Svoe FM', this)">Play</button>
-        <button class="stop" onclick="stopRadio()">Stop</button>
-      </div>
+    <div class="card" onclick="toggleStation('https://h.getradio.me/svoefm/hls.m3u8','Svoe FM', this)">
+      <img src="https://static10.tgstat.ru/channels/_0/f9/f9d9076a2feff054391254eb50e2794f.jpg" alt="Svoe FM">
     </div>
 
-    <div class="card">
-      <img src="https://static.tildacdn.com/tild3431-6236-4139-b533-326566616136/Original12_2.png" alt="">
-      <div class="title-container">
-        <div class="title">Best Deep FM</div>
-      </div>
-      <div class="controls">
-        <button class="play" onclick="playStation('https://h.getradio.me/bestdeepfm/hls.m3u8','Best Deep FM', this)">Play</button>
-        <button class="stop" onclick="stopRadio()">Stop</button>
-      </div>
+    <div class="card" onclick="toggleStation('https://h.getradio.me/bestdeepfm/hls.m3u8','Best Deep FM', this)">
+      <img src="https://static.tildacdn.com/tild3431-6236-4139-b533-326566616136/Original12_2.png" alt="Best Deep FM">
     </div>
 
-    <div class="card">
-      <img src="https://yt3.googleusercontent.com/ytc/AIdro_mcxZehF6Fv0yPccj0nnnhcvRbxlNrC1EhlodWWZ-KWArI=s900-c-k-c0x00ffffff-no-rj" alt="">
-      <div class="title-container">
-        <div class="title">Luxury Music DeepH</div>
-      </div>
-      <div class="controls">
-        <button class="play" onclick="playStation('https://h.getradio.me/luxury/hls.m3u8','Luxury Music DeepH', this)">Play</button>
-        <button class="stop" onclick="stopRadio()">Stop</button>
-      </div>
+    <div class="card" onclick="toggleStation('https://h.getradio.me/luxury/hls.m3u8','Luxury Music DeepH', this)">
+      <img src="https://yt3.googleusercontent.com/ytc/AIdro_mcxZehF6Fv0yPccj0nnnhcvRbxlNrC1EhlodWWZ-KWArI=s900-c-k-c0x00ffffff-no-rj" alt="Luxury Music DeepH">
     </div>
 
-    <div class="card">
-      <img src="https://avatars.mds.yandex.net/i?id=ef3d0278cc7b1a792a5677b4d61de256_l-5209794-images-thumbs&n=13" alt="">
-      <div class="title-container">
-        <div class="title">Delish Deep</div>
-      </div>
-      <div class="controls">
-        <button class="play" onclick="playStation('https://h.getradio.me/delishdeep/hls.m3u8','Delish Deep', this)">Play</button>
-        <button class="stop" onclick="stopRadio()">Stop</button>
-      </div>
+    <div class="card" onclick="toggleStation('https://h.getradio.me/delishdeep/hls.m3u8','Delish Deep', this)">
+      <img src="https://avatars.mds.yandex.net/i?id=ef3d0278cc7b1a792a5677b4d61de256_l-5209794-images-thumbs&n=13" alt="Delish Deep">
     </div>
   </div>
 
@@ -167,19 +90,24 @@
   var player = document.getElementById('player');
   var statusEl = document.getElementById('status');
   var currentActiveCard = null;
+  var currentStationUrl = null;
 
-  function playStation(url, name, buttonElement) {
-    stopRadio();
-    
-    // Убираем активный класс с предыдущей карточки
-    if (currentActiveCard) {
-      currentActiveCard.classList.remove('active');
+  function toggleStation(url, name, cardElement) {
+    // Если кликаем на уже активную станцию - останавливаем
+    if (currentActiveCard === cardElement) {
+      stopRadio();
+      return;
     }
     
-    // Находим родительскую карточку и добавляем класс active
-    var card = buttonElement.closest('.card');
-    card.classList.add('active');
-    currentActiveCard = card;
+    // Останавливаем предыдущую станцию
+    stopRadio();
+    
+    // Устанавливаем новую активную станцию
+    currentActiveCard = cardElement;
+    currentStationUrl = url;
+    
+    // Добавляем класс active для красной рамки
+    cardElement.classList.add('active');
     
     player.innerHTML = '<source src="'+url+'" type="application/vnd.apple.mpegurl">';
     player.load();
@@ -191,16 +119,18 @@
        .catch(function(e){ 
          statusEl.textContent = "Ошибка: " + e; 
          // Убираем активный класс при ошибке
-         card.classList.remove('active');
+         cardElement.classList.remove('active');
          currentActiveCard = null;
+         currentStationUrl = null;
        });
     } else {
       setTimeout(function(){
         if (player.paused) {
           statusEl.textContent = "Не удалось";
           // Убираем активный класс при ошибке
-          card.classList.remove('active');
+          cardElement.classList.remove('active');
           currentActiveCard = null;
+          currentStationUrl = null;
         } else {
           statusEl.textContent = "Играет: " + name;
         }
@@ -217,6 +147,7 @@
     if (currentActiveCard) {
       currentActiveCard.classList.remove('active');
       currentActiveCard = null;
+      currentStationUrl = null;
     }
     
     statusEl.textContent = "Остановлено";
@@ -232,6 +163,7 @@
     if (currentActiveCard) {
       currentActiveCard.classList.remove('active');
       currentActiveCard = null;
+      currentStationUrl = null;
     }
   });
 </script>
