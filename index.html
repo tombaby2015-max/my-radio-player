@@ -38,7 +38,6 @@
     transition: border-color 0.3s;
     position: relative;
   }
-  /* Красная рамка для активной станции */
   .card.active {
     border-color: #ff3b30;
   }
@@ -48,7 +47,6 @@
     border-radius: 12px;
     object-fit: cover;
   }
-  /* Кнопка редактирования в углу */
   .edit-btn {
     position: absolute;
     top: 8px;
@@ -65,7 +63,6 @@
     cursor: pointer;
     z-index: 10;
   }
-  /* Карточка для добавления новой станции */
   .add-card {
     border: 2px dashed #444;
     display: flex;
@@ -89,7 +86,6 @@
     display: none;
   }
   
-  /* Модальное окно */
   .modal {
     display: none;
     position: fixed;
@@ -154,17 +150,28 @@
     background: #ff3b30;
     color: white;
   }
+  .loading {
+    text-align: center;
+    color: #888;
+    padding: 20px;
+  }
+  .sync-status {
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 10px;
+  }
 </style>
 </head>
 <body>
   <h1>Интернет-радио</h1>
+  <div class="sync-status" id="syncStatus">Синхронизация...</div>
   <div class="grid" id="stationsGrid">
-    <!-- Станции будут добавляться динамически -->
+    <div class="loading">Загрузка радиостанций...</div>
   </div>
 
   <div id="status">Выберите станцию</div>
 
-  <!-- Модальное окно для редактирования/добавления -->
   <div class="modal" id="editModal">
     <div class="modal-content">
       <h2 id="modalTitle">Добавить радиостанцию</h2>
@@ -191,19 +198,25 @@
   <video id="player" preload="none" playsinline webkit-playsinline></video>
 
 <script>
+  // Конфигурация JSONBin с вашими ключами
+  const JSONBIN_BIN_ID = '68daac46ae596e708f001aca';
+  const JSONBIN_API_KEY = '$2a$10$3RWbk8Hlfsp34qpkemmhS.il8iMVgaGFvSvy2hn6TIpz4Irf1csdu';
+  
   var player = document.getElementById('player');
   var statusEl = document.getElementById('status');
   var stationsGrid = document.getElementById('stationsGrid');
   var editModal = document.getElementById('editModal');
   var modalTitle = document.getElementById('modalTitle');
   var deleteBtn = document.getElementById('deleteBtn');
+  var syncStatus = document.getElementById('syncStatus');
   
   var currentActiveCard = null;
   var currentStationUrl = null;
-  var editingIndex = -1; // -1 для новой станции, иначе индекс редактируемой
-  
-  // Начальные данные радиостанций
-  var stations = [
+  var editingIndex = -1;
+  var stations = [];
+
+  // Начальные станции (используются только при первом создании)
+  const defaultStations = [
     {
       name: "SoundPark Deep",
       image: "https://yt3.googleusercontent.com/ytc/AIdro_lJTw4VkYle3-UEtE-IA7sni1SyTx9Uqvxp10UvSHRMIqk=s900-c-k-c0x00ffffff-no-rj",
@@ -231,25 +244,92 @@
     }
   ];
 
-  // Загружаем станции из localStorage если есть
-  function loadStations() {
-    var savedStations = localStorage.getItem('radioStations');
-    if (savedStations) {
-      stations = JSON.parse(savedStations);
+  // Загружаем станции из JSONBin
+  async function loadStations() {
+    try {
+      syncStatus.textContent = "Синхронизация...";
+      
+      const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+        headers: {
+          'X-Master-Key': JSONBIN_API_KEY
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки');
+      }
+      
+      const data = await response.json();
+      
+      if (data.record && data.record.stations && data.record.stations.length > 0) {
+        stations = data.record.stations;
+        syncStatus.textContent = "Синхронизировано с облаком";
+        syncStatus.style.color = "#4CAF50";
+      } else {
+        // Если бина нет или он пустой, создаем начальные станции
+        stations = [...defaultStations];
+        await saveStationsToCloud();
+        syncStatus.textContent = "Созданы начальные станции";
+        syncStatus.style.color = "#FF9800";
+      }
+      
+      renderStations();
+    } catch (error) {
+      console.error('Ошибка загрузки:', error);
+      // Используем локальные станции как запасной вариант
+      const localStations = localStorage.getItem('radioStations');
+      if (localStations) {
+        stations = JSON.parse(localStations);
+        syncStatus.textContent = "Локальные данные (ошибка облака)";
+        syncStatus.style.color = "#FF5722";
+      } else {
+        stations = [...defaultStations];
+        syncStatus.textContent = "Начальные станции (ошибка облака)";
+        syncStatus.style.color = "#FF5722";
+      }
+      renderStations();
     }
-    renderStations();
   }
 
-  // Сохраняем станции в localStorage
-  function saveStations() {
-    localStorage.setItem('radioStations', JSON.stringify(stations));
+  // Сохраняем станции в JSONBin
+  async function saveStationsToCloud() {
+    try {
+      syncStatus.textContent = "Сохранение в облако...";
+      syncStatus.style.color = "#2196F3";
+      
+      const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': JSONBIN_API_KEY
+        },
+        body: JSON.stringify({ stations: stations })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Ошибка сохранения');
+      }
+      
+      const data = await response.json();
+      syncStatus.textContent = "Сохранено в облако";
+      syncStatus.style.color = "#4CAF50";
+      
+      // Также сохраняем локально как резервную копию
+      localStorage.setItem('radioStations', JSON.stringify(stations));
+      
+    } catch (error) {
+      console.error('Ошибка сохранения:', error);
+      // Сохраняем в localStorage как запасной вариант
+      localStorage.setItem('radioStations', JSON.stringify(stations));
+      syncStatus.textContent = "Сохранено локально (ошибка облака)";
+      syncStatus.style.color = "#FF5722";
+    }
   }
 
   // Отрисовываем все станции
   function renderStations() {
     stationsGrid.innerHTML = '';
     
-    // Отрисовываем существующие станции
     stations.forEach(function(station, index) {
       var card = document.createElement('div');
       card.className = 'card';
@@ -263,7 +343,7 @@
       editBtn.className = 'edit-btn';
       editBtn.innerHTML = '✎';
       editBtn.onclick = function(e) {
-        e.stopPropagation(); // Предотвращаем запуск радио при клике на кнопку редактирования
+        e.stopPropagation();
         openEditModal(index);
       };
       
@@ -280,19 +360,16 @@
     stationsGrid.appendChild(addCard);
   }
 
-  // Открываем модальное окно для редактирования
   function openEditModal(index) {
     editingIndex = index;
     
     if (index === -1) {
-      // Новая станция
       modalTitle.textContent = 'Добавить радиостанцию';
       document.getElementById('stationName').value = '';
       document.getElementById('stationImage').value = '';
       document.getElementById('stationUrl').value = '';
       deleteBtn.style.display = 'none';
     } else {
-      // Редактирование существующей
       modalTitle.textContent = 'Редактировать радиостанцию';
       document.getElementById('stationName').value = stations[index].name;
       document.getElementById('stationImage').value = stations[index].image;
@@ -303,53 +380,45 @@
     editModal.style.display = 'flex';
   }
 
-  // Закрываем модальное окно
   function closeModal() {
     editModal.style.display = 'none';
   }
 
-  // Сохраняем станцию
-  function saveStation() {
+  async function saveStation() {
     var name = document.getElementById('stationName').value;
     var image = document.getElementById('stationImage').value;
     var url = document.getElementById('stationUrl').value;
     
-    // Проверяем обязательные поля
     if (!name || !url) {
       alert('Пожалуйста, заполните обязательные поля (название и URL потока)');
       return;
     }
     
-    // Если изображение не указано, используем заглушку
     if (!image) {
       image = 'https://via.placeholder.com/140x140/1c1c1c/666?text=Radio';
     }
     
     if (editingIndex === -1) {
-      // Добавляем новую станцию
       stations.push({ name, image, url });
     } else {
-      // Обновляем существующую
       stations[editingIndex] = { name, image, url };
     }
     
-    saveStations();
+    await saveStationsToCloud();
     renderStations();
     closeModal();
   }
 
-  // Удаляем станцию
-  function deleteStation() {
+  async function deleteStation() {
     if (editingIndex !== -1 && confirm('Вы уверены, что хотите удалить эту радиостанцию?')) {
       stations.splice(editingIndex, 1);
-      saveStations();
+      await saveStationsToCloud();
       renderStations();
       closeModal();
-      stopRadio(); // Останавливаем воспроизведение если удалили активную станцию
+      stopRadio();
     }
   }
 
-  // Включение/выключение станции
   function toggleStation(url, name, cardElement) {
     // Если кликаем на уже активную станцию - останавливаем
     if (currentActiveCard === cardElement) {
