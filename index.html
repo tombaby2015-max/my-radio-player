@@ -4,6 +4,11 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>My Radio</title>
+<meta name="theme-color" content="#111111" />
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Radio">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📻</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
   body {
@@ -52,6 +57,32 @@
   .separator {
     margin: 0 8px;
     color: #444;
+  }
+
+  .sleep-timer {
+    text-align: center;
+    margin: 10px 0;
+  }
+
+  .timer-btn {
+    background: #333;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    margin: 0 4px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .timer-btn.active {
+    background: #0a84ff;
+  }
+
+  .timer-display {
+    font-size: 11px;
+    color: #888;
+    margin-top: 5px;
   }
 
   .grid {
@@ -189,12 +220,19 @@
 <body>
   <div class="header-fixed">
     <div class="header-top">
-      <h1>My Radio <span class="version">v1.0</span></h1>
+      <h1>My Radio <span class="version">v1.1</span></h1>
     </div>
     <div class="status-bar">
       <span id="syncStatus">синхронизировано</span>
       <span class="separator">/</span>
       <span id="playStatus">остановлено</span>
+    </div>
+    <div class="sleep-timer">
+      <button class="timer-btn" onclick="setSleepTimer(15)">15 мин</button>
+      <button class="timer-btn" onclick="setSleepTimer(30)">30 мин</button>
+      <button class="timer-btn" onclick="setSleepTimer(60)">1 час</button>
+      <button class="timer-btn" onclick="setSleepTimer(0)">Выкл</button>
+      <div class="timer-display" id="timerDisplay"></div>
     </div>
   </div>
 
@@ -242,6 +280,8 @@
   var editingIndex = -1;
   var stations = [];
   var hls = null;
+  var sleepTimer = null;
+  var sleepEndTime = null;
 
   const defaultStations = [
     {
@@ -270,6 +310,58 @@
       url: "https://h.getradio.me/delishdeep/hls.m3u8"
     }
   ];
+
+  // Таймер сна
+  function setSleepTimer(minutes) {
+    // Сбрасываем предыдущий таймер
+    if (sleepTimer) {
+      clearInterval(sleepTimer);
+      sleepTimer = null;
+    }
+    
+    // Сбрасываем подсветку кнопок
+    document.querySelectorAll('.timer-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    
+    if (minutes === 0) {
+      document.getElementById('timerDisplay').textContent = '';
+      sleepEndTime = null;
+      return;
+    }
+    
+    // Подсвечиваем активную кнопку
+    event.target.classList.add('active');
+    
+    // Устанавливаем время окончания
+    sleepEndTime = new Date();
+    sleepEndTime.setMinutes(sleepEndTime.getMinutes() + minutes);
+    
+    // Запускаем таймер
+    sleepTimer = setInterval(updateSleepTimer, 1000);
+    updateSleepTimer();
+  }
+
+  function updateSleepTimer() {
+    if (!sleepEndTime) return;
+    
+    const now = new Date();
+    const diff = sleepEndTime - now;
+    
+    if (diff <= 0) {
+      // Время вышло - останавливаем радио
+      stopRadio();
+      document.getElementById('timerDisplay').textContent = 'Таймер сработал!';
+      clearInterval(sleepTimer);
+      sleepTimer = null;
+      sleepEndTime = null;
+      return;
+    }
+    
+    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    document.getElementById('timerDisplay').textContent = `Таймер: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
 
   function updatePlayStatus(text) {
     document.getElementById('playStatus').textContent = text;
@@ -561,6 +653,11 @@
         closeModal();
       }
     };
+
+    // PWA установка
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    }
   };
 </script>
 </body>
